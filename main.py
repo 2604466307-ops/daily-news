@@ -445,21 +445,34 @@ def build_card(results, source_config):
 
 
 def send_to_feishu(webhook_url, card):
-    """通过 Webhook 发送卡片消息到飞书"""
-    # 打印 webhook URL（脱敏）
+    """通过 Webhook 发送卡片消息到飞书（含重试）"""
+    import time as time_mod
     masked = webhook_url[:40] + "***" + webhook_url[-10:] if len(webhook_url) > 50 else webhook_url
     print(f"[DEBUG] Webhook URL: {masked}")
-    print(f"[DEBUG] Card size: {len(json.dumps(card, ensure_ascii=False))} chars")
-    resp = requests.post(webhook_url, json=card, timeout=15)
-    print(f"[DEBUG] HTTP status: {resp.status_code}")
-    print(f"[DEBUG] Response body: {resp.text[:500]}")
-    result = resp.json()
-    code = result.get("code", -1)
-    if code == 0:
-        print("✅ 已成功推送到飞书！")
-    else:
-        print(f"❌ 飞书返回错误: code={code}, msg={result.get('msg', '')}")
-    return code == 0
+
+    for attempt in range(5):
+        resp = requests.post(webhook_url, json=card, timeout=15)
+        result = resp.json()
+        code = result.get("code", -1)
+        msg = result.get("msg", "")
+
+        if code == 0:
+            print("✅ 已成功推送到飞书！")
+            return True
+
+        # 限流 — 退避重试
+        if code == 11232:
+            delay = (attempt + 1) * 3
+            print(f"⏳ 限流重试 ({attempt+1}/5)，等待 {delay}s...")
+            time_mod.sleep(delay)
+            continue
+
+        # 其他错误不重试
+        print(f"❌ 飞书返回错误: code={code}, msg={msg}")
+        return False
+
+    print("❌ 重试 5 次仍失败")
+    return False
 
 
 # ─── 入口 ─────────────────────────────────────────────────────────
