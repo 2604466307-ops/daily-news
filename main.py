@@ -99,6 +99,29 @@ def fetch_zhihu():
         return "💡 知乎热榜", []
 
 
+def fetch_xwlb():
+    """新闻联播 前一天文字稿"""
+    try:
+        import akshare as ak
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        df = ak.news_cctv(date=yesterday)
+        items = []
+        for _, row in df.iterrows():
+            title = str(row.get("title", ""))
+            content = str(row.get("content", ""))
+            if title:
+                # 截取内容前 60 字
+                short = content[:60].replace("\n", " ").replace("\r", "") if content else ""
+                items.append({
+                    "title": title,
+                    "desc": short,
+                })
+        return "📺 新闻联播", items[:20]
+    except Exception as e:
+        print(f"[新闻联播] 获取失败: {e}")
+        return "📺 新闻联播", []
+
+
 def fetch_arxiv_ai():
     """Hugging Face 每日 AI 论文精选"""
     try:
@@ -365,6 +388,7 @@ def build_card(results, source_config):
 
     key_map = {
         "🔥 微博热搜": "weibo",
+        "📺 新闻联播": "xwlb",
         "💡 知乎热榜": "zhihu",
         "🤖 AI 科技热点": "reddit_ai",
         "🐙 GitHub Trending": "github",
@@ -482,13 +506,15 @@ def main():
     print(f"⏰ 开始抓取新闻... {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     config = load_config()
-    source_config = config.get("sources", ["weibo", "zhihu", "reddit_ai", "github"])
+    source_config = config.get("sources", ["weibo", "xwlb"])
 
     fetchers = []
     if "weibo" in source_config:
         fetchers.append(fetch_weibo)
     if "zhihu" in source_config:
         fetchers.append(fetch_zhihu)
+    if "xwlb" in source_config:
+        fetchers.append(fetch_xwlb)
     if "reddit_ai" in source_config:
         fetchers.append(fetch_arxiv_ai)
     if "github" in source_config:
