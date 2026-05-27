@@ -481,7 +481,7 @@ def main():
     print(f"⏰ 开始抓取新闻... {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     config = load_config()
-    source_config = config.get("sources", ["weibo", "zhihu", "reddit_ai", "github", "hackernews"])
+    source_config = config.get("sources", ["weibo", "zhihu", "reddit_ai", "github"])
 
     fetchers = []
     if "weibo" in source_config:
@@ -492,8 +492,6 @@ def main():
         fetchers.append(fetch_reddit_ai)
     if "github" in source_config:
         fetchers.append(fetch_github)
-    if "hackernews" in source_config:
-        fetchers.append(fetch_hackernews)
 
     results = []
     with ThreadPoolExecutor(max_workers=4) as executor:
