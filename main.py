@@ -237,18 +237,18 @@ def extract_summary(url):
             r'<meta[^>]+property="og:description"[^>]+content="([^"]+)"', html
         )
         if m:
-            return m.group(1)[:120]
+            return m.group(1)[:80]
         # meta description
         m = re.search(
             r'<meta[^>]+name="description"[^>]+content="([^"]+)"', html
         )
         if m:
-            return m.group(1)[:120]
+            return m.group(1)[:80]
         # 兜底：第一个有意义的 <p>
         for m in re.finditer(r"<p[^>]*>(.*?)</p>", html, re.DOTALL):
             text = re.sub(r"<[^>]+>", "", m.group(1)).strip()
             if len(text) > 30:
-                return text[:120]
+                return text[:80]
     except Exception:
         pass
     return ""
@@ -272,7 +272,7 @@ def enrich_summaries(results):
     print(f"  抓取 {len(tasks)} 条摘要...")
 
     def do_fetch(url, item):
-        return item, extract_summary(url)
+        return item, extract_summary(url)[:80]
 
     count = 0
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -478,6 +478,7 @@ def send_to_feishu(webhook_url, card):
 # ─── 入口 ─────────────────────────────────────────────────────────
 
 def main():
+    import time as time_mod
     print(f"⏰ 开始抓取新闻... {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     config = load_config()
@@ -510,8 +511,20 @@ def main():
     translate_news(results)
 
     webhook_url = get_webhook_url()
-    card = build_card(results, source_config)
-    send_to_feishu(webhook_url, card)
+
+    # 逐个源分批发送，间隔 1.5s 避免限流
+    success = 0
+    for source_name, items in results:
+        if not items:
+            continue
+        card = build_card([(source_name, items)], source_config)
+        size = len(json.dumps(card, ensure_ascii=False))
+        print(f"  推送 {source_name} ({len(items)}条, {size}chars)...")
+        if send_to_feishu(webhook_url, card):
+            success += 1
+        time_mod.sleep(1.5)
+
+    print(f"\n📤 推送完成: {success}/{len([r for r in results if r[1]])}")
 
 
 if __name__ == "__main__":
