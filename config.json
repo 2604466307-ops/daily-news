@@ -1,6 +1,6 @@
 {
   "webhook_url": "",
-  "sources": ["weibo", "zhihu", "reddit_ai", "github"],
+  "sources": ["weibo"],
   "max_items_per_source": 15,
-  "comment": "sources 可选: weibo/zhihu/reddit_ai/github"
+  "comment": "sources 可选: weibo"
 }
