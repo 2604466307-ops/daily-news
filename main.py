@@ -446,7 +446,13 @@ def build_card(results, source_config):
 
 def send_to_feishu(webhook_url, card):
     """通过 Webhook 发送卡片消息到飞书"""
+    # 打印 webhook URL（脱敏）
+    masked = webhook_url[:40] + "***" + webhook_url[-10:] if len(webhook_url) > 50 else webhook_url
+    print(f"[DEBUG] Webhook URL: {masked}")
+    print(f"[DEBUG] Card size: {len(json.dumps(card, ensure_ascii=False))} chars")
     resp = requests.post(webhook_url, json=card, timeout=15)
+    print(f"[DEBUG] HTTP status: {resp.status_code}")
+    print(f"[DEBUG] Response body: {resp.text[:500]}")
     result = resp.json()
     code = result.get("code", -1)
     if code == 0:
