@@ -1,0 +1,25 @@
+name: Daily News
+
+on:
+  schedule:
+    # 北京时间 9:00 = UTC 1:00
+    - cron: "0 1 * * *"
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily news script
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: python main.py

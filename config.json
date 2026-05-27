@@ -1,0 +1,6 @@
+{
+  "webhook_url": "",
+  "sources": ["weibo", "zhihu", "baidu", "github", "hackernews"],
+  "max_items_per_source": 15,
+  "comment": "webhook_url 填你的飞书机器人 Webhook 地址；sources 可删减不需要的源：weibo/zhihu/baidu/github/hackernews"
+}
