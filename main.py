@@ -100,23 +100,22 @@ def fetch_zhihu():
 
 
 def fetch_xwlb():
-    """新闻联播 前一天文字稿"""
+    """新闻联播 前一天文字稿（全文）"""
     try:
         import akshare as ak
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        date_display = (datetime.now() - timedelta(days=1)).strftime("%m月%d日")
         df = ak.news_cctv(date=yesterday)
         items = []
         for _, row in df.iterrows():
             title = str(row.get("title", ""))
-            content = str(row.get("content", ""))
+            content = str(row.get("content", "")).replace("\n", " ").replace("\r", "")
             if title:
-                # 截取内容前 60 字
-                short = content[:60].replace("\n", " ").replace("\r", "") if content else ""
                 items.append({
                     "title": title,
-                    "desc": short,
+                    "desc": content,
                 })
-        return "📺 新闻联播", items[:20]
+        return f"📺 新闻联播（{date_display}）", items[:25]
     except Exception as e:
         print(f"[新闻联播] 获取失败: {e}")
         return "📺 新闻联播", []
@@ -399,7 +398,9 @@ def build_card(results, source_config):
     for source_name, items in results:
         if not items:
             continue
-        key = key_map.get(source_name, "")
+        # XWLB 名称带日期，如 "📺 新闻联播（05月26日）"
+        base_name = source_name.split("（")[0] if "（" in source_name else source_name
+        key = key_map.get(base_name, "")
         if key not in enabled:
             continue
 
@@ -541,12 +542,18 @@ def main():
     for source_name, items in results:
         if not items:
             continue
-        card = build_card([(source_name, items)], source_config)
-        size = len(json.dumps(card, ensure_ascii=False))
-        print(f"  推送 {source_name} ({len(items)}条, {size}chars)...")
-        if send_to_feishu(webhook_url, card):
-            success += 1
-        time_mod.sleep(1.5)
+        is_xwlb = source_name.startswith("📺 新闻联播")
+        batch_size = 5 if is_xwlb else len(items)
+
+        for batch_idx in range(0, len(items), batch_size):
+            batch_items = items[batch_idx:batch_idx + batch_size]
+            card = build_card([(source_name, batch_items)], source_config)
+            size = len(json.dumps(card, ensure_ascii=False))
+            label = f"{source_name} ({batch_idx+1}-{min(batch_idx+batch_size, len(items))}/{len(items)}条, {size}chars)"
+            print(f"  推送 {label}...")
+            if send_to_feishu(webhook_url, card):
+                success += 1
+            time_mod.sleep(1.5)
 
     print(f"\n📤 推送完成: {success}/{len([r for r in results if r[1]])}")
 
