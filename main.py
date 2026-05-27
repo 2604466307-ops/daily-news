@@ -99,33 +99,36 @@ def fetch_zhihu():
         return "💡 知乎热榜", []
 
 
-def fetch_reddit_ai():
-    """Reddit r/MachineLearning + r/artificial AI 科技热点"""
+def fetch_arxiv_ai():
+    """ArXiv 最新 AI 论文（cs.AI）"""
     try:
+        import xml.etree.ElementTree as ET
+        url = (
+            "http://export.arxiv.org/api/query?"
+            "search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.CV"
+            "&sortBy=submittedDate&sortOrder=descending&max_results=12"
+        )
+        resp = requests.get(url, headers={"User-Agent": UA}, timeout=15)
+        resp.raise_for_status()
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        root = ET.fromstring(resp.text)
         items = []
-        for subreddit in ("MachineLearning", "artificial"):
-            resp = requests.get(
-                f"https://www.reddit.com/r/{subreddit}/hot.json?limit=8",
-                headers={"User-Agent": UA},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            for post in data.get("data", {}).get("children", []):
-                d = post["data"]
-                title = d.get("title", "")
-                if title:
-                    items.append({
-                        "title": title,
-                        "url": f"https://reddit.com{d.get('permalink', '')}",
-                        "hot": str(d.get("score", 0)),
-                        "desc": f"r/{subreddit}  💬{d.get('num_comments', 0)}",
-                    })
-        # 按分数排序取前 15
-        items.sort(key=lambda x: int(x.get("hot", 0)), reverse=True)
-        return "🤖 AI 科技热点", items[:15]
+        for entry in root.findall("atom:entry", ns):
+            title_el = entry.find("atom:title", ns)
+            url_el = entry.find("atom:id", ns)
+            summary_el = entry.find("atom:summary", ns)
+            if title_el is not None:
+                title = title_el.text.strip().replace("\n", " ")
+                paper_url = url_el.text.strip() if url_el is not None else ""
+                summary = summary_el.text.strip()[:80] if summary_el is not None else ""
+                items.append({
+                    "title": title,
+                    "url": paper_url,
+                    "desc": summary,
+                })
+        return "🤖 AI 科技热点", items[:12]
     except Exception as e:
-        print(f"[Reddit AI] 获取失败: {e}")
+        print(f"[ArXiv AI] 获取失败: {e}")
         return "🤖 AI 科技热点", []
 
 
@@ -489,7 +492,7 @@ def main():
     if "zhihu" in source_config:
         fetchers.append(fetch_zhihu)
     if "reddit_ai" in source_config:
-        fetchers.append(fetch_reddit_ai)
+        fetchers.append(fetch_arxiv_ai)
     if "github" in source_config:
         fetchers.append(fetch_github)
 
