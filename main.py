@@ -100,35 +100,33 @@ def fetch_zhihu():
 
 
 def fetch_arxiv_ai():
-    """ArXiv 最新 AI 论文（cs.AI）"""
+    """Hugging Face 每日 AI 论文精选"""
     try:
-        import xml.etree.ElementTree as ET
-        url = (
-            "http://export.arxiv.org/api/query?"
-            "search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.CV"
-            "&sortBy=submittedDate&sortOrder=descending&max_results=12"
+        resp = requests.get(
+            "https://huggingface.co/api/daily_papers",
+            headers={"User-Agent": UA},
+            timeout=15,
         )
-        resp = requests.get(url, headers={"User-Agent": UA}, timeout=15)
         resp.raise_for_status()
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
-        root = ET.fromstring(resp.text)
+        data = resp.json()
         items = []
-        for entry in root.findall("atom:entry", ns):
-            title_el = entry.find("atom:title", ns)
-            url_el = entry.find("atom:id", ns)
-            summary_el = entry.find("atom:summary", ns)
-            if title_el is not None:
-                title = title_el.text.strip().replace("\n", " ")
-                paper_url = url_el.text.strip() if url_el is not None else ""
-                summary = summary_el.text.strip()[:80] if summary_el is not None else ""
-                items.append({
-                    "title": title,
-                    "url": paper_url,
-                    "desc": summary,
-                })
-        return "🤖 AI 科技热点", items[:12]
+        for paper in data[:12]:
+            title = paper.get("title", "")
+            if not title:
+                continue
+            paper_info = paper.get("paper", {})
+            summary = paper_info.get("summary", "")
+            if summary:
+                summary = summary[:80]
+            items.append({
+                "title": title,
+                "url": f"https://huggingface.co/papers/{paper.get('id', '')}",
+                "hot": str(paper.get("upvotes", "")),
+                "desc": summary,
+            })
+        return "🤖 AI 科技热点", items
     except Exception as e:
-        print(f"[ArXiv AI] 获取失败: {e}")
+        print(f"[HF Daily Papers] 获取失败: {e}")
         return "🤖 AI 科技热点", []
 
 
