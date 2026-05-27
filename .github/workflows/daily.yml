@@ -1,10 +1,10 @@
 name: Daily News
 
 on:
+  push:
   schedule:
-    # 北京时间 9:00 = UTC 1:00
     - cron: "0 1 * * *"
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
