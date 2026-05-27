@@ -99,41 +99,34 @@ def fetch_zhihu():
         return "💡 知乎热榜", []
 
 
-def fetch_baidu():
-    """百度热搜"""
+def fetch_reddit_ai():
+    """Reddit r/MachineLearning + r/artificial AI 科技热点"""
     try:
-        resp = requests.get(
-            "https://top.baidu.com/api/board?platform=wise&tab=realtime",
-            headers={"User-Agent": UA},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
         items = []
-        cards = data.get("data", {}).get("cards", [])
-        for card in cards:
-            for content_block in card.get("content", []):
-                for item in content_block.get("content", [])[:15]:
-                    word = item.get("word", "")
-                    url = item.get("url", "")
-                    hot_tag = item.get("hotTag", "")
-                    if word:
-                        items.append({
-                            "title": word,
-                            "url": url,
-                            "hot": hot_tag,
-                        })
-        # 去重（百度接口可能返回重复项）
-        seen = set()
-        unique = []
-        for it in items:
-            if it["title"] not in seen:
-                seen.add(it["title"])
-                unique.append(it)
-        return "🔴 百度热搜", unique[:15]
+        for subreddit in ("MachineLearning", "artificial"):
+            resp = requests.get(
+                f"https://www.reddit.com/r/{subreddit}/hot.json?limit=8",
+                headers={"User-Agent": UA},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            for post in data.get("data", {}).get("children", []):
+                d = post["data"]
+                title = d.get("title", "")
+                if title:
+                    items.append({
+                        "title": title,
+                        "url": f"https://reddit.com{d.get('permalink', '')}",
+                        "hot": str(d.get("score", 0)),
+                        "desc": f"r/{subreddit}  💬{d.get('num_comments', 0)}",
+                    })
+        # 按分数排序取前 15
+        items.sort(key=lambda x: int(x.get("hot", 0)), reverse=True)
+        return "🤖 AI 科技热点", items[:15]
     except Exception as e:
-        print(f"[百度] 获取失败: {e}")
-        return "🔴 百度热搜", []
+        print(f"[Reddit AI] 获取失败: {e}")
+        return "🤖 AI 科技热点", []
 
 
 def fetch_github():
@@ -318,12 +311,14 @@ def translate_news(results):
     """翻译结果中的英文内容（标题 + 描述 + 摘要）"""
     tasks = []
     for source_name, items in results:
-        if source_name == "🧡 Hacker News":
+        if source_name in ("🧡 Hacker News", "🤖 AI 科技热点"):
             for item in items:
                 if is_english(item["title"]):
                     tasks.append(("hn_title", item))
                 if item.get("summary") and is_english(item["summary"]):
                     tasks.append(("hn_summary", item))
+                if item.get("desc") and is_english(item["desc"]):
+                    tasks.append(("hn_desc", item))
         elif source_name == "🐙 GitHub Trending":
             for item in items:
                 if item.get("desc") and is_english(item["desc"]):
@@ -337,6 +332,8 @@ def translate_news(results):
             text = item["title"]
         elif task_type == "hn_summary":
             text = item["summary"]
+        elif task_type == "hn_desc":
+            text = item["desc"]
         else:
             text = item["desc"]
         zh = translate_single(text)
@@ -352,6 +349,8 @@ def translate_news(results):
                     item["title_zh"] = zh
                 elif task_type == "hn_summary":
                     item["summary_zh"] = zh
+                elif task_type == "hn_desc":
+                    item["desc_zh"] = zh
                 else:
                     item["desc_zh"] = zh
 
@@ -366,7 +365,7 @@ def build_card(results, source_config):
     key_map = {
         "🔥 微博热搜": "weibo",
         "💡 知乎热榜": "zhihu",
-        "🔴 百度热搜": "baidu",
+        "🤖 AI 科技热点": "reddit_ai",
         "🐙 GitHub Trending": "github",
         "🧡 Hacker News": "hackernews",
     }
@@ -380,7 +379,7 @@ def build_card(results, source_config):
             continue
 
         lines = []
-        is_hn = source_name == "🧡 Hacker News"
+        is_hn = source_name in ("🧡 Hacker News", "🤖 AI 科技热点")
         is_gh = source_name == "🐙 GitHub Trending"
 
         for i, item in enumerate(items, 1):
@@ -482,15 +481,15 @@ def main():
     print(f"⏰ 开始抓取新闻... {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     config = load_config()
-    source_config = config.get("sources", ["weibo", "zhihu", "baidu", "github", "hackernews"])
+    source_config = config.get("sources", ["weibo", "zhihu", "reddit_ai", "github", "hackernews"])
 
     fetchers = []
     if "weibo" in source_config:
         fetchers.append(fetch_weibo)
     if "zhihu" in source_config:
         fetchers.append(fetch_zhihu)
-    if "baidu" in source_config:
-        fetchers.append(fetch_baidu)
+    if "reddit_ai" in source_config:
+        fetchers.append(fetch_reddit_ai)
     if "github" in source_config:
         fetchers.append(fetch_github)
     if "hackernews" in source_config:
