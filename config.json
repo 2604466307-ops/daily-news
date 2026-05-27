@@ -1,6 +1,6 @@
 {
   "webhook_url": "",
-  "sources": ["weibo", "xwlb"],
+  "sources": ["weibo", "douyin", "xwlb"],
   "max_items_per_source": 15,
-  "comment": "sources 可选: weibo/xwlb/zhihu/reddit_ai/github/hackernews"
+  "comment": "sources 可选: weibo/douyin/xwlb/zhihu/reddit_ai/github/hackernews"
 }

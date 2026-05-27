@@ -121,6 +121,31 @@ def fetch_xwlb():
         return "📺 新闻联播", []
 
 
+def fetch_douyin():
+    """抖音热搜"""
+    try:
+        resp = requests.get(
+            "https://uapis.cn/api/v1/misc/hotboard?type=douyin",
+            headers={"User-Agent": UA},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        items = []
+        for item in data.get("list", [])[:15]:
+            title = item.get("title", "")
+            if title:
+                items.append({
+                    "title": title,
+                    "url": item.get("url", ""),
+                    "hot": item.get("hot_value", ""),
+                })
+        return "🎵 抖音热搜", items
+    except Exception as e:
+        print(f"[抖音] 获取失败: {e}")
+        return "🎵 抖音热搜", []
+
+
 def fetch_arxiv_ai():
     """Hugging Face 每日 AI 论文精选"""
     try:
@@ -387,6 +412,7 @@ def build_card(results, source_config):
 
     key_map = {
         "🔥 微博热搜": "weibo",
+        "🎵 抖音热搜": "douyin",
         "📺 新闻联播": "xwlb",
         "💡 知乎热榜": "zhihu",
         "🤖 AI 科技热点": "reddit_ai",
@@ -514,6 +540,8 @@ def main():
         fetchers.append(fetch_weibo)
     if "zhihu" in source_config:
         fetchers.append(fetch_zhihu)
+    if "douyin" in source_config:
+        fetchers.append(fetch_douyin)
     if "xwlb" in source_config:
         fetchers.append(fetch_xwlb)
     if "reddit_ai" in source_config:
